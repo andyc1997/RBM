@@ -1,7 +1,8 @@
 import torch
 
 
-# Restricted Boltzmann Machine (Binary data)
+# (Bernoulli) Restricted Boltzmann Machine
+# k-step Contrastive Divergence algorithm
 class RBMobj:
     def __init__(self, h_dim: int, v_dim: int, k: int, lr: float = 0.001,
                  tol: float = 1E-3, epoch: int = 10, trace: bool = False):
@@ -78,6 +79,14 @@ class RBMobj:
             if self.trace:
                 # print(f'Difference in free energy: {torch.round(d_free_energy, decimals=4)}')
                 print(f'Pseudo-likelihood: {torch.round(self.pseudo_lik[epoch], decimals=4)}')
+
+    def gibbs(self, v: torch.Tensor):
+        # gibbs sampling
+        v_temp = v.clone()
+        for t in range(self.k):
+            h_temp = self._sampling_hidden(v_temp)
+            v_temp = self._sampling_visible(h_temp)
+        return v_temp
 
     def _sampling_hidden(self, v: torch.Tensor):
         # sample from p(h|v)

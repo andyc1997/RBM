@@ -26,3 +26,14 @@ model.fit(X_tr_batch)
 # endregion
 
 plt.plot(model.pseudo_lik)
+
+idx_chosen = 0
+v_gen = model.gibbs(X_tr[idx_chosen, :])
+
+fig, ax = plt.subplots(1, 2)
+ax[0].imshow(X_tr[idx_chosen, :].reshape((28, 28)))
+ax[0].set_title('Ground truth')
+ax[1].imshow(v_gen.reshape((28, 28)))
+ax[1].set_title('Generated')
+
+
