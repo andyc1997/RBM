@@ -59,27 +59,29 @@ class RBMobj:
                         v_next = v_temp.clone()
 
                 # update
-                self.W += self.lr * (torch.outer(v, h_next) - torch.outer(v_next, h_next))
+                self.W += self.lr * (torch.outer(v, h) - torch.outer(v_next, h_next))
                 self.a += self.lr * (v - v_next)
                 self.b += self.lr * (h - h_next)
 
-            # loss update by a random sample, and corrupt by a random bit flip
-            idx_sample = torch.randint(0, n_sample, size=(1,)).item()
-            idx_bit = torch.randint(0, self.v_dim, size=(1,)).item()
+            # corrupt each sample by a random bit flip
+            idx_bit = torch.randint(0, self.v_dim, size=(n_sample,))
+            pseudo_lik = 0.0
+            for i in range(n_sample):
+                v_corrpt = X[i, :].clone()
+                d_free_energy = self._free_energy(v_corrpt)
+                v_corrpt[idx_bit[i]] = 1 - v_corrpt[idx_bit[i]]
+                d_free_energy -= self._free_energy(v_corrpt)
+                pseudo_lik += self.v_dim * torch.log(torch.sigmoid(-d_free_energy))
 
-            v_corrpt_rand = X[idx_sample, :].clone()
-            d_free_energy = self._free_energy(v_corrpt_rand)
-            v_corrpt_rand[idx_bit] = 1 - v_corrpt_rand[idx_bit]
-            d_free_energy -= self._free_energy(v_corrpt_rand)
+            self.pseudo_lik[epoch] = pseudo_lik / n_sample
 
-            self.pseudo_lik[epoch] = self.v_dim * torch.log(torch.sigmoid(-d_free_energy))
             if self.trace:
-                print(f'Difference in free energy: {d_free_energy}')
+                # print(f'Difference in free energy: {torch.round(d_free_energy, decimals=4)}')
                 print(f'Pseudo-likelihood: {torch.round(self.pseudo_lik[epoch], decimals=4)}')
 
     def _sampling_hidden(self, v: torch.Tensor):
         # sample from p(h|v)
-        p = torch.matmul(torch.t(self.W), v)
+        p = torch.matmul(self.W.t(), v)
         p += self.b
         p = torch.sigmoid(p)
         return torch.bernoulli(p)
@@ -93,7 +95,7 @@ class RBMobj:
 
     def _free_energy(self, v: torch.Tensor):
         E = torch.inner(self.a, v)
-        E += torch.sum(1 + torch.exp(torch.matmul(torch.t(self.W), v) + self.b))
+        E += torch.sum(torch.log(1 + torch.exp(torch.matmul(self.W.t(), v) + self.b)))
         return -E
 
     def _energy(self, v: torch.Tensor, h: torch.Tensor):
