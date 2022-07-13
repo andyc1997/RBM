@@ -2,30 +2,28 @@ import numpy as np
 import idx2numpy
 import torch
 
-from model import RBM
+from model import RBMobj
 from torch.utils.data import DataLoader, TensorDataset
 
 ## MNIST
 
 
 # region load images into tensor
-X_tr = idx2numpy.convert_from_file(r'train-images.idx3-ubyte')
+X_tr = idx2numpy.convert_from_file(r'.\..\..\autoencoders\train-images.idx3-ubyte')
 (N_tr, nx, ny) = X_tr.shape
 
 # add single channel
 X_tr = np.expand_dims(X_tr, axis=1)
 
-# normalize into [0, 1]
+# binarize image
 X_tr = torch.Tensor(X_tr / 255.0)
-dataset_tr = TensorDataset(X_tr)
+X_tr = torch.where(X_tr > 0.8, 1, 0).type(torch.float64)
 
 batch_size = 64
-dataloader_tr = DataLoader(X_tr, batch_size=batch_size)
+X_tr_batch = X_tr[0:batch_size, :].reshape((batch_size, 28*28))
+model = RBMobj(h_dim=10, v_dim=28*28, k=10,
+               lr=1e-6, epoch=50, trace=True)
+model.fit(X_tr_batch)
 # endregion
 
 
-# region device, model and optimizer
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using {device} device")
-
-# endregion
